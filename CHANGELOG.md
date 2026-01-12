@@ -1,3 +1,8 @@
+## [1.1.0-rpc-v1.1](https://github.com/rdkcentral/firebolt-cpp-transport/compare/v1.0.0...1.1.0-rpc-v1.1) (2026-01-14)
+
+### Added
+- Legacy support: Events can be retrieved in the old way via `legacyRPCv1` configuration option
+
 ## [1.0.0](https://github.com/rdkcentral/firebolt-cpp-transport/compare/v0.2.0...v1.0.0) (2026-01-13)
 
 ### Added
