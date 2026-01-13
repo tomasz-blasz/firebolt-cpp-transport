@@ -10,6 +10,11 @@
       "name": "+([0-9])\\.+([0-9])\\.x-maintenance",
       "channel": "${name}",
       "range": "$1.$2.x"
+    },
+    {
+      "name": "feat/rpc-v1",
+      "prerelease": "rpc-v1",
+      "channel": "rpc-v1"
     }
   ],
   "plugins": [
