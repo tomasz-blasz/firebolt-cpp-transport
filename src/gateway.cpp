@@ -361,6 +361,11 @@ public:
 
     virtual Firebolt::Error disconnect() override
     {
+        Firebolt::Error status = transport.disconnect();
+        if (status != Firebolt::Error::None)
+        {
+            return status;
+        }
         if (watchdogRunning)
         {
             watchdogRunning = false;
@@ -369,7 +374,7 @@ public:
                 watchdogThread.join();
             }
         }
-        return transport.disconnect();
+        return Error::None;
     }
 
     Firebolt::Error send(const std::string& method, const nlohmann::json& parameters) override
@@ -452,6 +457,7 @@ private:
             if (message.contains("id"))
             {
                 FIREBOLT_LOG_ERROR("Gateway", "Invalid payload received (id is present): %s", message.dump().c_str());
+                return;
             }
             else
             {
