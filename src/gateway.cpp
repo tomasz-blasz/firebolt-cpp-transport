@@ -282,7 +282,6 @@ private:
     Server server;
     std::thread watchdogThread;
     std::atomic<bool> watchdogRunning;
-    std::once_flag watchdogOnceFlag;
 
 public:
     GatewayImpl()
@@ -341,20 +340,18 @@ public:
             return status;
         }
 
-        std::call_once(watchdogOnceFlag,
-                       [this]()
-                       {
-                           watchdogRunning = true;
-                           watchdogThread = std::thread(
-                               [this]()
-                               {
-                                   while (watchdogRunning)
-                                   {
-                                       std::this_thread::sleep_for(std::chrono::milliseconds(watchdog_interval_ms));
-                                       client.checkPromises();
-                                   }
-                               });
-                       });
+        if (!watchdogRunning.exchange(true))
+        {
+            watchdogThread = std::thread(
+                [this]()
+                {
+                    while (watchdogRunning)
+                    {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(watchdog_interval_ms));
+                        client.checkPromises();
+                    }
+                });
+        }
 
         return status;
     }
@@ -366,9 +363,8 @@ public:
         {
             return status;
         }
-        if (watchdogRunning)
+        if (watchdogRunning.exchange(false))
         {
-            watchdogRunning = false;
             if (watchdogThread.joinable())
             {
                 watchdogThread.join();

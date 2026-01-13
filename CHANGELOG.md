@@ -6,6 +6,7 @@
 ### Fixes
 - Reconnection issue
 - Transport should be disconnected first
+- Race condition on simultanous calls to Gateway::connect()
 
 ## [1.0.0-next.25](https://github.com/rdkcentral/firebolt-cpp-transport/compare/v1.0.0-next.24...v1.0.0-next.25) (2025-12-17)
 
