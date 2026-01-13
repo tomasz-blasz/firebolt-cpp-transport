@@ -1,5 +1,13 @@
 ## [Unreleased](https://github.com/rdkcentral/firebolt-cpp-transport/compare/v1.0.0-next.25...main)
 
+### Changes
+- **Breaking**: The call Gateway::request() is asynchronous
+
+### Fixes
+- Reconnection issue
+- Transport should be disconnected first
+- Race condition on simultanous calls to Gateway::connect()
+
 ## [1.0.0-next.25](https://github.com/rdkcentral/firebolt-cpp-transport/compare/v1.0.0-next.24...v1.0.0-next.25) (2025-12-17)
 
 No user-facing changes
