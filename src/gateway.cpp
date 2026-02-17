@@ -109,12 +109,12 @@ public:
     }
 
     std::future<Result<nlohmann::json>> request(const std::string& method, const nlohmann::json& parameters,
-                                                std::optional<unsigned> idOpt)
+                                                std::optional<MessageID> idOpt)
     {
         MessageID id;
         if (idOpt.has_value())
         {
-            id = static_cast<MessageID>(idOpt.value());
+            id = idOpt.value();
         }
         else
         {
@@ -501,7 +501,7 @@ public:
 
 private:
     std::future<Result<nlohmann::json>> request(const std::string& method, const nlohmann::json& parameters,
-                                                std::optional<unsigned> id)
+                                                std::optional<MessageID> id)
     {
         return client.request(method, parameters, id);
     }
