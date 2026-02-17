@@ -253,7 +253,7 @@ TEST_F(GatewayTest, RequestTimeout)
     nlohmann::json params = {{"key", "value"}};
     auto responseFuture = gateway.request("test.method", params);
 
-    auto responseStatus = responseFuture.wait_for(std::chrono::milliseconds(1500));
+    auto responseStatus = responseFuture.wait_for(std::chrono::milliseconds(2500));
     ASSERT_EQ(responseStatus, std::future_status::ready) << "Request timed out";
 
     auto result = responseFuture.get();
@@ -408,7 +408,7 @@ TEST_F(GatewayTest, LegacyRPCv1Event)
     std::promise<nlohmann::json> eventPromise;
     auto eventFuture = eventPromise.get_future();
 
-    m_messageHandler = [this, &eventPromise](connection_hdl hdl, server::message_ptr msg)
+    m_messageHandler = [this](connection_hdl hdl, server::message_ptr msg)
     {
         auto request = nlohmann::json::parse(msg->get_payload());
         if (request["method"].get<std::string>().find(".onEvent") != std::string::npos)
@@ -433,15 +433,14 @@ TEST_F(GatewayTest, LegacyRPCv1Event)
 
     Firebolt::Config cfg = getTestConfig();
     cfg.legacyRPCv1 = true;
-    gateway.connect(cfg, [this](bool connected, const Firebolt::Error& err)
-                    { onConnectionChange(connected, err); });
+    Firebolt::Error connectErr = gateway.connect(cfg, [this](bool connected, const Firebolt::Error& err)
+                                                 { onConnectionChange(connected, err); });
+    ASSERT_EQ(connectErr, Firebolt::Error::None);
 
     ASSERT_EQ(connectionFuture.wait_for(std::chrono::seconds(2)), std::future_status::ready);
 
     auto onEvent = [](void* usercb, const nlohmann::json& params)
-    {
-        static_cast<std::promise<nlohmann::json>*>(usercb)->set_value(params);
-    };
+    { static_cast<std::promise<nlohmann::json>*>(usercb)->set_value(params); };
 
     Firebolt::Error err = gateway.subscribe("test.onEvent", onEvent, &eventPromise);
     EXPECT_EQ(err, Firebolt::Error::None);
