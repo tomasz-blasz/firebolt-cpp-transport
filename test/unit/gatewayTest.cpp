@@ -402,3 +402,55 @@ TEST_F(GatewayTest, InvalidNotification)
     auto result = responseFuture.get();
     EXPECT_TRUE(result) << "Gateway returned an error for a valid request after invalid notifications.";
 }
+
+TEST_F(GatewayTest, LegacyRPCv1Event)
+{
+    std::promise<nlohmann::json> eventPromise;
+    auto eventFuture = eventPromise.get_future();
+
+    m_messageHandler = [this, &eventPromise](connection_hdl hdl, server::message_ptr msg)
+    {
+        auto request = nlohmann::json::parse(msg->get_payload());
+        if (request["method"].get<std::string>().find(".onEvent") != std::string::npos)
+        {
+            nlohmann::json response;
+            response["jsonrpc"] = "2.0";
+            response["id"] = request["id"];
+            response["result"]["listening"] = true;
+            m_server.send(hdl, response.dump(), msg->get_opcode());
+
+            nlohmann::json legacyEvent;
+            legacyEvent["jsonrpc"] = "2.0";
+            legacyEvent["id"] = request["id"];
+            legacyEvent["result"] = {{"fired", true}};
+            m_server.send(hdl, legacyEvent.dump(), msg->get_opcode());
+        }
+    };
+
+    startServer();
+    IGateway& gateway = GetGatewayInstance();
+    auto connectionFuture = m_connectionPromise.get_future();
+
+    Firebolt::Config cfg = getTestConfig();
+    cfg.legacyRPCv1 = true;
+    gateway.connect(cfg, [this](bool connected, const Firebolt::Error& err)
+                    { onConnectionChange(connected, err); });
+
+    ASSERT_EQ(connectionFuture.wait_for(std::chrono::seconds(2)), std::future_status::ready);
+
+    auto onEvent = [](void* usercb, const nlohmann::json& params)
+    {
+        static_cast<std::promise<nlohmann::json>*>(usercb)->set_value(params);
+    };
+
+    Firebolt::Error err = gateway.subscribe("test.onEvent", onEvent, &eventPromise);
+    EXPECT_EQ(err, Firebolt::Error::None);
+
+    auto eventStatus = eventFuture.wait_for(std::chrono::seconds(2));
+    ASSERT_EQ(eventStatus, std::future_status::ready) << "Legacy event was not received";
+
+    nlohmann::json eventParams = eventFuture.get();
+    EXPECT_TRUE(eventParams["fired"].get<bool>());
+
+    gateway.unsubscribe("test.onEvent", &eventPromise);
+}

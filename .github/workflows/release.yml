@@ -5,7 +5,7 @@ on:
 
 jobs:
   release:
-    if: github.ref_name == 'main' || endsWith(github.ref_name, '-rc') || endsWith(github.ref_name, '.x-maintenance')
+    if: github.ref_name == 'main' || endsWith(github.ref_name, '-rc') || endsWith(github.ref_name, '.x-maintenance') || github.ref_name == 'feat/rpc-v1'
     runs-on: ubuntu-latest
     permissions:
       contents: write
