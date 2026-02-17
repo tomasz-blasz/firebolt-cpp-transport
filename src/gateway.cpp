@@ -427,13 +427,18 @@ public:
             return Firebolt::Error::None;
         }
 
+        MessageID id = transport.getNextMessageID();
+
+        if (legacyRPCv1)
+        {
+            std::lock_guard<std::mutex> lock(rpcv1_eventMap_mtx);
+            rpcv1_eventMap[id] = {event, usercb};
+        }
+
         nlohmann::json params;
         params["listen"] = true;
 
-        MessageID id = transport.getNextMessageID();
-        auto future = request(event, params, id);
-
-        auto result = future.get();
+        auto result = request(event, params, id).get();
 
         if (!result)
         {
@@ -443,13 +448,10 @@ public:
         if (status != Firebolt::Error::None)
         {
             server.unsubscribe(event, usercb);
-        }
-        if (legacyRPCv1)
-        {
-            if (status == Firebolt::Error::None)
+            if (legacyRPCv1)
             {
                 std::lock_guard<std::mutex> lock(rpcv1_eventMap_mtx);
-                rpcv1_eventMap[id] = {event, usercb};
+                rpcv1_eventMap.erase(id);
             }
         }
         return status;
@@ -470,8 +472,7 @@ public:
 
         nlohmann::json params;
         params["listen"] = false;
-        auto future = request(event, params);
-        auto result = future.get();
+        auto result = request(event, params).get();
 
         if (!result)
         {
