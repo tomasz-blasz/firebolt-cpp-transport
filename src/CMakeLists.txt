@@ -20,6 +20,9 @@ include(CMakePackageConfigHelpers)
 
 set(TARGET ${PROJECT_NAME})
 message("Setup ${TARGET} v${PROJECT_VERSION}")
+if(ENABLE_LEGACY_RPC_V1)
+  message("RPC-v1 enabled")
+endif()
 
 string(TOLOWER "${TARGET}" TARGET_LOWER)
 
@@ -38,6 +41,12 @@ add_library(${TARGET}
 )
 
 add_library(${TARGET}::${TARGET} ALIAS ${TARGET})
+
+if(ENABLE_LEGACY_RPC_V1)
+    set(FIREBOLT_LEGACY_RPC_V1 true)
+else()
+    set(FIREBOLT_LEGACY_RPC_V1 false)
+endif()
 
 if(ENABLE_TESTS)
     target_compile_options(${TARGET} PRIVATE --coverage -g -O0 -fno-inline)
@@ -64,6 +73,12 @@ generate_export_header(
 configure_file(
     "${PROJECT_SOURCE_DIR}/include/firebolt/version.h.in"
     "${CMAKE_CURRENT_BINARY_DIR}/firebolt/transport_version.h"
+    @ONLY
+)
+
+configure_file(
+    "${PROJECT_SOURCE_DIR}/include/firebolt/config.h.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/firebolt/config.h"
     @ONLY
 )
 
@@ -128,6 +143,7 @@ install(
     FILES
         ${CMAKE_CURRENT_BINARY_DIR}/firebolt/transport_export.h
         ${CMAKE_CURRENT_BINARY_DIR}/firebolt/transport_version.h
+        ${CMAKE_CURRENT_BINARY_DIR}/firebolt/config.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/firebolt
 )
 
