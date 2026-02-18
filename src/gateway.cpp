@@ -464,6 +464,23 @@ public:
             return Firebolt::Error::None;
         }
 
+        if (legacyRPCv1)
+        {
+            std::lock_guard<std::mutex> lock(rpcv1_eventMap_mtx);
+            for (auto it = rpcv1_eventMap.begin(); it != rpcv1_eventMap.end();)
+            {
+                if (it->second == event)
+                {
+                    it = rpcv1_eventMap.erase(it);
+                    break;
+                }
+                else
+                {
+                    ++it;
+                }
+            }
+        }
+
         nlohmann::json params;
         params["listen"] = false;
         auto result = request(event, params).get();
@@ -471,25 +488,6 @@ public:
         if (!result)
         {
             status = result.error();
-        }
-        if (legacyRPCv1)
-        {
-            if (status == Firebolt::Error::None)
-            {
-                std::lock_guard<std::mutex> lock(rpcv1_eventMap_mtx);
-                for (auto it = rpcv1_eventMap.begin(); it != rpcv1_eventMap.end();)
-                {
-                    if (it->second == event)
-                    {
-                        it = rpcv1_eventMap.erase(it);
-                        break;
-                    }
-                    else
-                    {
-                        ++it;
-                    }
-                }
-            }
         }
 
         return status;
