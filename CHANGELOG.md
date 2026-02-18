@@ -1,9 +1,12 @@
-## [Unreleased](https://github.com/rdkcentral/firebolt-cpp-transport/compare/v1.0.0...main) (2026-01-13)
+## [1.1.0](https://github.com/rdkcentral/firebolt-cpp-transport/compare/v1.0.0...v1.1.0)
+
+### Added
+- Legacy support: Events can be retrieved in the old way via `legacyRPCv1` configuration option
 
 ### Changed
 - Set `SameMajorVersion` compatibility
 
-## [1.0.0](https://github.com/rdkcentral/firebolt-cpp-transport/compare/v0.2.0...v1.0.0) (2026-01-13)
+## [1.0.0](https://github.com/rdkcentral/firebolt-cpp-transport/compare/v0.2.0...v1.0.0)
 
 ### Added
 - Notice log level
@@ -25,12 +28,12 @@
 - Reconnection issue
 - Race condition on simultaneous calls to Gateway::connect()
 
-## [0.2.0](https://github.com/rdkcentral/firebolt-cpp-transport/compare/v0.1.0...v0.2.0) (2025-08-01)
+## [0.2.0](https://github.com/rdkcentral/firebolt-cpp-transport/compare/v0.1.0...v0.2.0)
 
 ### Changed
 - Communication with an endpoint is now JSON-RPC compliant
 
-## [0.1.0](https://github.com/rdkcentral/firebolt-cpp-transport/compare/709d9c6...v0.1.0) (2025-07-04)
+## [0.1.0](https://github.com/rdkcentral/firebolt-cpp-transport/compare/709d9c6...v0.1.0)
 
 ### Added
 - Initial Transport with "unidirectional" communication with an endpoint

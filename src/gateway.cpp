@@ -108,9 +108,18 @@ public:
         return transport_.send(method, parameters, id);
     }
 
-    std::future<Result<nlohmann::json>> request(const std::string& method, const nlohmann::json& parameters)
+    std::future<Result<nlohmann::json>> request(const std::string& method, const nlohmann::json& parameters,
+                                                std::optional<MessageID> idOpt)
     {
-        MessageID id = transport_.getNextMessageID();
+        MessageID id;
+        if (idOpt.has_value())
+        {
+            id = idOpt.value();
+        }
+        else
+        {
+            id = transport_.getNextMessageID();
+        }
         std::shared_ptr<Caller> c = std::make_shared<Caller>(id);
         auto future = c->promise.get_future();
 
@@ -282,12 +291,17 @@ private:
     Server server;
     std::thread watchdogThread;
     std::atomic<bool> watchdogRunning;
+    bool legacyRPCv1;
+
+    std::map<MessageID, std::string> rpcv1_eventMap;
+    std::mutex rpcv1_eventMap_mtx;
 
 public:
     GatewayImpl()
         : client(*this),
           server(),
-          watchdogRunning(false)
+          watchdogRunning(false),
+          legacyRPCv1(false)
     {
     }
 
@@ -315,20 +329,30 @@ public:
 
         runtime_waitTime_ms = cfg.waitTime_ms;
         std::string url = cfg.wsUrl;
-        if (url.find("?") == std::string::npos)
+        legacyRPCv1 = cfg.legacyRPCv1;
+
+        if (!legacyRPCv1)
         {
-            url += "?";
+            if (url.find("?") == std::string::npos)
+            {
+                url += "?";
+            }
+            else
+            {
+                url += "&";
+            }
+            url += "RPCv2=true";
         }
-        else
-        {
-            url += "&";
-        }
-        url += "RPCv2=true";
 
         std::optional<unsigned> transportLoggingInclude = cfg.log.transportInclude;
         std::optional<unsigned> transportLoggingExclude = cfg.log.transportExclude;
 
         FIREBOLT_LOG_NOTICE("Transport", "Version: %s", Version::String);
+        if (legacyRPCv1)
+        {
+            FIREBOLT_LOG_NOTICE("Transport", "Legacy RPCv1");
+        }
+
         FIREBOLT_LOG_INFO("Gateway", "Connecting to url = %s", url.c_str());
         Firebolt::Error status = transport.connect(
             url, [this](const nlohmann::json& message) { this->onMessage(message); },
@@ -380,7 +404,7 @@ public:
 
     std::future<Result<nlohmann::json>> request(const std::string& method, const nlohmann::json& parameters) override
     {
-        return client.request(method, parameters);
+        return request(method, parameters, std::nullopt);
     }
 
     Firebolt::Error subscribe(const std::string& event, EventCallback callback, void* usercb) override
@@ -397,10 +421,18 @@ public:
             return Firebolt::Error::None;
         }
 
+        MessageID id = transport.getNextMessageID();
+
+        if (legacyRPCv1)
+        {
+            std::lock_guard<std::mutex> lock(rpcv1_eventMap_mtx);
+            rpcv1_eventMap[id] = event;
+        }
+
         nlohmann::json params;
         params["listen"] = true;
-        auto future = request(event, params);
-        auto result = future.get();
+
+        auto result = request(event, params, id).get();
 
         if (!result)
         {
@@ -410,6 +442,11 @@ public:
         if (status != Firebolt::Error::None)
         {
             server.unsubscribe(event, usercb);
+            if (legacyRPCv1)
+            {
+                std::lock_guard<std::mutex> lock(rpcv1_eventMap_mtx);
+                rpcv1_eventMap.erase(id);
+            }
         }
         return status;
     }
@@ -427,10 +464,26 @@ public:
             return Firebolt::Error::None;
         }
 
+        if (legacyRPCv1)
+        {
+            std::lock_guard<std::mutex> lock(rpcv1_eventMap_mtx);
+            for (auto it = rpcv1_eventMap.begin(); it != rpcv1_eventMap.end();)
+            {
+                if (it->second == event)
+                {
+                    it = rpcv1_eventMap.erase(it);
+                    break;
+                }
+                else
+                {
+                    ++it;
+                }
+            }
+        }
+
         nlohmann::json params;
         params["listen"] = false;
-        auto future = request(event, params);
-        auto result = future.get();
+        auto result = request(event, params).get();
 
         if (!result)
         {
@@ -441,10 +494,38 @@ public:
     }
 
 private:
+    std::future<Result<nlohmann::json>> request(const std::string& method, const nlohmann::json& parameters,
+                                                std::optional<MessageID> id)
+    {
+        return client.request(method, parameters, id);
+    }
+
     void onMessage(const nlohmann::json& message)
     {
         if (message.contains("id") && (message.contains("result") || message.contains("error")))
         {
+            if (legacyRPCv1)
+            {
+                if (message.contains("result") && !message["result"].empty() && message["result"].is_object() &&
+                    !message["result"].contains("listening"))
+                {
+                    MessageID id = message["id"];
+                    std::string eventName;
+                    {
+                        std::lock_guard<std::mutex> lock(rpcv1_eventMap_mtx);
+                        auto it = rpcv1_eventMap.find(id);
+                        if (it != rpcv1_eventMap.end())
+                        {
+                            eventName = it->second;
+                        }
+                    }
+                    if (!eventName.empty())
+                    {
+                        server.notify(eventName, message["result"]);
+                        return;
+                    }
+                }
+            }
             client.response(message);
             return;
         }

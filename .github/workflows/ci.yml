@@ -2,9 +2,19 @@ name: CI Build and Test
 
 on:
   push:
-    branches: [ main, next, '+([0-9])\.+([0-9])\.x-maintenance' ]
+    branches: [ main, '+([0-9])\.+([0-9])\.x-maintenance', '+([0-9])\.+([0-9])-rc' ]
   pull_request:
-    branches: [ main, next, '+([0-9])\.+([0-9])\.x-maintenance' ]
+    branches: [ main, '+([0-9])\.+([0-9])\.x-maintenance', '+([0-9])\.+([0-9])-rc'  ]
+  workflow_dispatch:
+    inputs:
+      protocol:
+        description: 'RPC Protocol to test'
+        required: true
+        default: 'rpc_v2'
+        type: choice
+        options:
+          - rpc_v2
+          - legacy
 
 defaults:
   run:
@@ -101,11 +111,17 @@ jobs:
 
       - name: Configure Project
         run: |
+          ENABLE_LEGACY_RPC_V1="OFF"
+          if [[ "${{ github.event_name }}" = "workflow_dispatch"  && "${{ github.event.inputs.protocol }}" = "legacy" ]]; then
+            ENABLE_LEGACY_RPC_V1="ON"
+          fi
+
           docker run --rm --user "$(id -u):$(id -g)" -v ${{ github.workspace }}:/workspace ${{ needs.build_docker.outputs.image_tag }} \
             bash -c " \
               cmake -B build -S . \
                   -DCMAKE_BUILD_TYPE=Debug \
                   -DENABLE_TESTS=ON \
+                  -DENABLE_LEGACY_RPC_V1=$ENABLE_LEGACY_RPC_V1 \
             "
 
       - name: Build Project
