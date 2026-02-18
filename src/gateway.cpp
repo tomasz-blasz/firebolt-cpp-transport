@@ -293,13 +293,7 @@ private:
     std::atomic<bool> watchdogRunning;
     bool legacyRPCv1;
 
-    struct RPCv1_EventInfo
-    {
-        std::string eventName;
-        void* usercb;
-    };
-    using RPCv1_EventMap = std::map<MessageID, RPCv1_EventInfo>;
-    RPCv1_EventMap rpcv1_eventMap;
+    std::map<MessageID, std::string> rpcv1_eventMap;
     std::mutex rpcv1_eventMap_mtx;
 
 public:
@@ -432,7 +426,7 @@ public:
         if (legacyRPCv1)
         {
             std::lock_guard<std::mutex> lock(rpcv1_eventMap_mtx);
-            rpcv1_eventMap[id] = {event, usercb};
+            rpcv1_eventMap[id] = event;
         }
 
         nlohmann::json params;
@@ -485,9 +479,10 @@ public:
                 std::lock_guard<std::mutex> lock(rpcv1_eventMap_mtx);
                 for (auto it = rpcv1_eventMap.begin(); it != rpcv1_eventMap.end();)
                 {
-                    if (it->second.eventName == event && it->second.usercb == usercb)
+                    if (it->second == event)
                     {
                         it = rpcv1_eventMap.erase(it);
+                        break;
                     }
                     else
                     {
@@ -522,7 +517,7 @@ private:
                         auto it = rpcv1_eventMap.find(id);
                         if (it != rpcv1_eventMap.end())
                         {
-                            eventName = it->second.eventName;
+                            eventName = it->second;
                         }
                     }
                     if (!eventName.empty())
