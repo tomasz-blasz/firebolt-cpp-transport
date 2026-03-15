@@ -1,3 +1,8 @@
+## [1.1.6](https://github.com/rdkcentral/firebolt-cpp-transport/compare/v1.1.4...v1.1.6)
+
+### Changed
+- Allow to don't set SONAME in shared library
+
 ## [1.1.5](https://github.com/rdkcentral/firebolt-cpp-transport/compare/v1.1.4...v1.1.5)
 
 ### Changed
